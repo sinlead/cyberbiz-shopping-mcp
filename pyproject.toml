@@ -5,6 +5,34 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "fastmcp==2.13.0.2",
     "httpx>=0.28.1",
-    "mcp[cli]>=1.20.0",
+]
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = [
+    "**/__pycache__",
+    ".venv",
+]
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
+pythonVersion = "3.14"
+pythonPlatform = "All"
+
+[tool.ruff]
+line-length = 120
+exclude = [".venv"]
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.407",
+    "ruff>=0.14.3",
 ]
