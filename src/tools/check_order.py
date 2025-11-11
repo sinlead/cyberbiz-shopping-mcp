@@ -1,6 +1,13 @@
 """Tool for checking order status."""
 
-def check_order(order_id: str) -> dict:
+from fastmcp.server.dependencies import get_access_token
+
+from config import config
+
+
+def check_order(
+    order_id: str,
+) -> dict:
     """
     Check the status of an existing order.
 
@@ -10,6 +17,31 @@ def check_order(order_id: str) -> dict:
     Returns:
         Dictionary containing order status and details
     """
+    token = get_access_token()
+
+    if not token:
+        return {
+            "status": "error",
+            "message": "Authentication required",
+            "error_code": "AUTHENTICATION_REQUIRED"
+        }
+
+    # 驗證用戶是否有 read_orders scope
+    required_scope = config.REQUIRED_SCOPES_CHECK_ORDER
+    if required_scope not in token.scopes:
+        return {
+            "status": "error",
+            "message": f"Insufficient permissions. Required scope: {required_scope}",
+            "error_code": "INSUFFICIENT_SCOPE"
+        }
+
+    # 從 token claims 取得用戶資訊
+    shop_id = token.claims.get("shop_id")
+    shop_domain = token.claims.get("shop_domain")
+
+    # TODO: 實際呼叫 cyberbiz.co API 查詢訂單
+    # 使用 shop_id 來確保用戶只能查詢自己的訂單
+
     # Mock order status
     return {
         "status": "success",
@@ -41,5 +73,10 @@ def check_order(order_id: str) -> dict:
         "customer": {
             "name": "John Doe",
             "email": "john@example.com"
+        },
+        # 包含驗證後的商店資訊
+        "shop_info": {
+            "shop_id": shop_id,
+            "shop_domain": shop_domain
         }
     }
