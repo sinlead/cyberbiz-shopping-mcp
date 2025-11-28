@@ -2,15 +2,12 @@
 
 from typing import Literal
 
-from fastmcp.server.dependencies import get_access_token
 from pydantic import BaseModel
 
+from dependencies import get_bigquery_client, get_cyberbiz_client, get_embedding_client
 from mcp_instance import mcp
 from models.product import Product
 from repositories.product_repository import ProductRepository
-from services.cyberbiz_bigquery_client import CyberbizBigQueryClient
-from services.cyberbiz_client import CyberbizClient
-from services.embedding_client import EmbeddingClient
 
 
 class DiscoverProductsResponse(BaseModel):
@@ -42,14 +39,10 @@ async def discover_products(
     channels: list[str] | None = None,
     max_results: int = 5,
 ) -> DiscoverProductsResponse:
-    token = get_access_token()
-    if not token:
-        raise ValueError("Authentication required")
-
     repository = ProductRepository(
-        cyberbiz_client=CyberbizClient(token.token),
-        bigquery_client=CyberbizBigQueryClient(token),
-        embedding_client=EmbeddingClient(),
+        cyberbiz_client=get_cyberbiz_client(),
+        bigquery_client=get_bigquery_client(),
+        embedding_client=get_embedding_client(),
     )
 
     if search_mode == "keyword":

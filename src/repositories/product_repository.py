@@ -28,7 +28,6 @@ class ProductRepository:
             "/v2/products/search",
             params={"q": query, "limit": limit}
         )
-        logger.debug(f"search_by_keyword_matching response:\n{pformat(res, depth=None, width=120)}")
 
         products = []
         for item in res:
@@ -39,7 +38,7 @@ class ProductRepository:
                 currency="TWD",  # Default to TWD, adjust if API provides this
                 url=item["product_url"],
                 photo_urls=item.get("photo_urls"),
-                description=item.get("body_html") or item.get("brief") or "",
+                description="\n\n".join(filter(None, [item.get("brief"), item.get("body_html")])),
                 variants=[
                     ProductVariant(
                         id=variant["id"],
@@ -87,7 +86,6 @@ class ProductRepository:
             "limit": limit,
             "threshold": similarity_threshold
         })
-        logger.debug(f"search_by_vector_similarity response:\n{pformat(res, depth=None, width=120)}")
 
         # Extract product IDs and fetch details in parallel
         product_ids = [result["product_id"] for result in res]
@@ -100,16 +98,15 @@ class ProductRepository:
             "GET",
             f"/v2/products/{product_id}",
         )
-        logger.debug(f"get_product_detail response:\n{pformat(res, depth=None, width=120)}")
 
         return Product(
-            id=res["id"],
+            id=product_id,
             title=res["title"],
             published=res["published"],
             currency="TWD",
             url=res["product_url"],
             photo_urls=res.get("photo_urls"),
-            description=res.get("body_html") or res.get("brief") or "",
+            description="\n\n".join(filter(None, [res.get("brief"), res.get("body_html")])),
             variants=[
                 ProductVariant(
                     id=variant["id"],

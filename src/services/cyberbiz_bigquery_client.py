@@ -3,11 +3,8 @@
 import logging
 from typing import Any, Optional
 
-from fastmcp.server.auth.auth import AccessToken
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
-
-from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +12,16 @@ logger = logging.getLogger(__name__)
 class CyberbizBigQueryClient:
     """BigQuery client for Cyberbiz operations with automatic shop_id filtering."""
 
-    def __init__(self, token: AccessToken):
+    def __init__(self, client: bigquery.Client, shop_id: int):
         """
-        Initialize Cyberbiz BigQuery client with OAuth token.
+        Initialize Cyberbiz BigQuery client.
 
         Args:
-            token: OAuth access token containing shop_id in claims
+            client: Shared BigQuery client instance
+            shop_id: Shop ID for filtering queries
         """
-        self.client = bigquery.Client(project=config.CYBERBIZ_GCP_PROJECT_ID)
-        self.shop_id = 146 or token.claims.get("shop_id") # FIXME: for dev
+        self.client = client
+        self.shop_id = shop_id
 
     async def query(self, sql: str, params: Optional[dict[str, Any]] = None) -> list[dict]:
         """
