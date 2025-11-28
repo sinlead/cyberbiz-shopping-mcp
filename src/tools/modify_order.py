@@ -1,5 +1,9 @@
 """Tool for modifying existing orders."""
 
+from mcp_instance import mcp
+
+
+@mcp.tool()
 def modify_order(
     order_id: str,
     modifications: dict

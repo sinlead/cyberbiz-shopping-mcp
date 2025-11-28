@@ -3,8 +3,10 @@
 from fastmcp.server.dependencies import get_access_token
 
 from config import config
+from mcp_instance import mcp
 
 
+@mcp.tool()
 def check_order(
     order_id: str,
 ) -> dict:

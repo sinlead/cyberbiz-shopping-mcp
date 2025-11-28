@@ -29,11 +29,12 @@
 - 使用 zrok 來把本地的 MCP server 以及本地的 Auth/Resource Server (cyberbiz.co) 暴露到外網，以利各 AI assistant 連接
   ```sh
   zrok share public localhost:8000  # 把此 zrok 網域放到 PUBLIC_URL
-  zrok share public www.lvh.me:4000  # 把此 zrok 網域放到 CYBERBIZ_AUTH_PUBLIC_URL
+  zrok share public www.lvh.me:4000  # 把此 zrok 網域放到 CYBERBIZ_PUBLIC_URL
   ```
 - Run server locally
   ```sh
-  python src/server.py
+  python src/server.py # using default .env file
+  ENV_FILE=.env.staging python src/server.py # specify env file
   ```
 
 ## Claude Desktop Example（Paid version）
@@ -41,7 +42,7 @@
 - Open up Claude Desktop
 - Go to Profile (Bottom Left) > Settings > Connectors > Add custom connector
   - Name: `CYBERBIZ Shopping MCP`
-  - Remote Sever URL: `<url you get from "zrok share public www.lvh.me:4000">/mcp` （note that there's an appended /mcp in the end）
+  - Remote Sever URL: `<url you get from "zrok share public localhost:8000">/mcp` （note that there's an appended /mcp in the end）
 - Click 'Connect' > Enter shop domain > Login > Approve at consent window
 - Start asking questions to trigger those tools!
 

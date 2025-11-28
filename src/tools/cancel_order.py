@@ -1,5 +1,9 @@
 """Tool for canceling orders."""
 
+from mcp_instance import mcp
+
+
+@mcp.tool()
 def cancel_order(
     order_id: str,
     reason: str

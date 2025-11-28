@@ -1,5 +1,9 @@
 """Tool for placing orders."""
 
+from mcp_instance import mcp
+
+
+@mcp.tool()
 def place_order(
     product_id: str,
     quantity: int,

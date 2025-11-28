@@ -1,5 +1,9 @@
 """Tool for checking if a purchase is feasible."""
 
+from mcp_instance import mcp
+
+
+@mcp.tool()
 def check_purchase_feasibility(
     product_id: str,
     quantity: int

@@ -1,5 +1,9 @@
 """Tool for handling after-sales service."""
 
+from mcp_instance import mcp
+
+
+@mcp.tool()
 def handle_after_sales(
     order_id: str,
     issue_type: str,

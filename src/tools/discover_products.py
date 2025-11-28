@@ -1,65 +1,76 @@
 """Tool for discovering and searching products."""
 
-def discover_products(
+from typing import Literal
+
+from fastmcp.server.dependencies import get_access_token
+from pydantic import BaseModel
+
+from mcp_instance import mcp
+from models.product import Product
+from repositories.product_repository import ProductRepository
+from services.cyberbiz_bigquery_client import CyberbizBigQueryClient
+from services.cyberbiz_client import CyberbizClient
+from services.embedding_client import EmbeddingClient
+
+
+class DiscoverProductsResponse(BaseModel):
+    status: Literal["success", "error"]
+    products: list[Product]
+
+
+@mcp.tool(
+    description="""Search for products using keyword or vector similarity search.
+
+Search modes:
+- 'keyword': Use for exact product names, brands, or specific terms
+  Examples: "Nike shoes", "iPhone 15", "Adidas running shoes"
+
+- 'vector': Use for scenario-based, feature-based, or conceptual queries
+  Examples:
+  * "gifts for my girlfriend who loves minimalist style"
+  * "something comfortable for hiking in summer"
+  * "products suitable for a beach vacation"
+  * "eco-friendly items for home office"
+  * "gifts for tech enthusiasts under $100"
+
+Choose 'vector' mode when the user describes a scenario, need, or abstract concept rather than naming a specific product."""
+)
+async def discover_products(
+    search_mode: Literal["keyword", "vector"],
     query: str,
-    category: str | None = None,
-    max_results: int = 10
-) -> dict:
-    """
-    Search and discover products on CYBERBIZ platform.
+    price_range: tuple[float, float] | None = None,
+    channels: list[str] | None = None,
+    max_results: int = 5,
+) -> DiscoverProductsResponse:
+    token = get_access_token()
+    if not token:
+        raise ValueError("Authentication required")
 
-    Args:
-        query: Search query string
-        category: Optional category filter (e.g., "electronics", "clothing")
-        max_results: Maximum number of results to return (default: 10)
+    repository = ProductRepository(
+        cyberbiz_client=CyberbizClient(token.token),
+        bigquery_client=CyberbizBigQueryClient(token),
+        embedding_client=EmbeddingClient(),
+    )
 
-    Returns:
-        Dictionary containing search results with product details
-    """
-    # Mock product data
-    mock_products = [
-        {
-            "id": "PROD-001",
-            "name": f"Premium {query.title()} - Model A",
-            "price": 299.99,
-            "currency": "USD",
-            "description": f"High-quality {query} with advanced features",
-            "category": category or "general",
-            "stock": 50,
-            "rating": 4.5,
-            "image_url": "https://example.com/product-001.jpg"
-        },
-        {
-            "id": "PROD-002",
-            "name": f"Professional {query.title()} - Pro Edition",
-            "price": 499.99,
-            "currency": "USD",
-            "description": f"Professional-grade {query} for experts",
-            "category": category or "general",
-            "stock": 25,
-            "rating": 4.8,
-            "image_url": "https://example.com/product-002.jpg"
-        },
-        {
-            "id": "PROD-003",
-            "name": f"Budget {query.title()} - Basic",
-            "price": 149.99,
-            "currency": "USD",
-            "description": f"Affordable {query} for everyday use",
-            "category": category or "general",
-            "stock": 100,
-            "rating": 4.0,
-            "image_url": "https://example.com/product-003.jpg"
-        }
-    ]
-
-    # Limit results
-    results = mock_products[:max_results]
-
-    return {
-        "status": "success",
-        "query": query,
-        "category": category,
-        "total_results": len(results),
-        "products": results
-    }
+    if search_mode == "keyword":
+        products = await repository.search_by_keyword_matching(
+            query=query,
+            # price_range=None,
+            # channels=None,
+            limit=max_results,
+        )
+        return DiscoverProductsResponse(
+            status="success",
+            products=products
+        )
+    elif search_mode == "vector":
+        products = await repository.search_by_vector_similarity(
+            query=query,
+            # price_range=None,
+            # channels=None,
+            limit=max_results,
+        )
+        return DiscoverProductsResponse(
+            status="success",
+            products=products
+        )
