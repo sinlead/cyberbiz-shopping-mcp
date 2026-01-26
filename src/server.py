@@ -21,6 +21,6 @@ async def health_check(request: Request) -> Response:
 if __name__ == "__main__":
     mcp.run(
         transport=cast(Transport, config.TRANSPORT),
-        host=config.HOST or "127.0.0.1",
-        port=config.PORT or 8000,
+        host=config.HOST,
+        port=config.PORT,
     )
