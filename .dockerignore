@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+*.test
+
+# Environment files (will be provided at runtime)
+.env
+.env.*
+
+# Misc
+*.log
+dump.rdb
+poetry.lock
+
+# CI/CD
+.drone.yml
+Jenkinsfile
+.github/
+
+# macOS
+.DS_Store
