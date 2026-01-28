@@ -7,12 +7,24 @@ from typing import Optional
 _shop_id: ContextVar[Optional[int]] = ContextVar("shop_id", default=None)
 _shop_domain: ContextVar[Optional[str]] = ContextVar("shop_domain", default=None)
 
+
+def set_shop_id(shop_id: int) -> None:
+    """Set shop_id in request context."""
+    _shop_id.set(shop_id)
+
+
 def get_shop_id() -> int:
     """Get shop_id from request context."""
     shop_id = _shop_id.get()
     if shop_id is None:
         raise ValueError("shop_id not found in request context")
     return shop_id
+
+
+def set_shop_domain(shop_domain: str) -> None:
+    """Set shop_domain in request context."""
+    _shop_domain.set(shop_domain)
+
 
 def get_shop_domain() -> str:
     """Get shop_domain from request context."""
