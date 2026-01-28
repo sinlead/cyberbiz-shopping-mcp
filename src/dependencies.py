@@ -2,12 +2,11 @@
 
 from functools import lru_cache
 
-from fastmcp.server.dependencies import get_access_token
 from google.cloud import bigquery
 
 from config import config
+from context import get_shop_id, get_shop_domain
 from services.cyberbiz_bigquery_client import CyberbizBigQueryClient
-from services.cyberbiz_client import CyberbizClient
 from services.embedding_client import EmbeddingClient
 
 
@@ -37,34 +36,13 @@ def get_bigquery_client() -> CyberbizBigQueryClient:
     Get a BigQueryClient for the current request.
 
     Returns:
-        CyberbizBigQueryClient instance with shop_id from access token
+        CyberbizBigQueryClient instance with shop_id from request context
 
     Raises:
-        ValueError: If no authentication token is available
+        ValueError: If shop_id is not available in request context
     """
-    token = get_access_token()
-    if not token:
-        raise ValueError("Authentication required for BigQuery operations")
-
-    shop_id = 146 or token.claims.get("shop_id")  # FIXME: for dev
+    shop_id = get_shop_id()  # Get from request context
     return CyberbizBigQueryClient(
         client=get_bigquery_base_client(),
         shop_id=shop_id,
     )
-
-
-def get_cyberbiz_client() -> CyberbizClient:
-    """
-    Get a CyberbizClient for the current request.
-
-    Returns:
-        CyberbizClient instance authenticated with current access token
-
-    Raises:
-        ValueError: If no authentication token is available
-    """
-    token = get_access_token()
-    if not token:
-        raise ValueError("Authentication required for Cyberbiz API operations")
-
-    return CyberbizClient(token.token)

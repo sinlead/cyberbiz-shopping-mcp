@@ -43,7 +43,21 @@ class ProductRepository:
         product_embedding_table = f"{config.CYBERBIZ_GCP_PROJECT_ID}.cyberbiz_embedding_gemini.product_embeddings"
         similarity_threshold = 0.2
 
-        # Build filter conditions and query params 
+        # Store type mapping (string to integer) -fix
+        STORE_TYPE_MAPPING = {
+            "shop": 1,
+            # "pos_shop": 2,
+            # "branch_store": 3,
+        }
+
+        # Genre mapping (string to integer)
+        GENRE_MAPPING = {
+            "normal": 1,
+            "eticket": 2,
+            "combo": 3,
+        }
+
+        # Build filter conditions and query params
         filter_conditions = []
         query_params = {
             "embedding": embedding,
@@ -61,11 +75,13 @@ class ProductRepository:
 
         if store_type is not None:
             filter_conditions.append("base.store_type = @store_type")
-            query_params["store_type"] = store_type
+            store_type_value = STORE_TYPE_MAPPING.get(store_type, 1)
+            query_params["store_type"] = store_type_value
 
         if genre is not None:
             filter_conditions.append("base.genre = @genre")
-            query_params["genre"] = genre
+            genre_value = GENRE_MAPPING.get(genre, 1)
+            query_params["genre"] = genre_value
 
         where_filter = ""
         if filter_conditions:
@@ -98,9 +114,17 @@ class ProductRepository:
 
         res = await self.bigquery_client.query(sql, query_params)
 
+        logger.info(f"Vector search returned {len(res)} results")
+        if res:
+            logger.info(f"Top result similarity scores: {[f'{r.get('similarity_score', 0):.4f}' for r in res[:3]]}")
+        else:
+            logger.warning(f"No results found for query: '{query}' with threshold {similarity_threshold}")
+
         # Extract product IDs and fetch details in parallel
         product_ids = [result["product_id"] for result in res]
         products = await asyncio.gather(*[self.get_product_detail(product_id) for product_id in product_ids])
+
+        logger.info(f"Successfully fetched {len(products)} product details")
         return products
 
 
