@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from dependencies import get_bigquery_client, get_cyberbiz_client, get_embedding_client
+from dependencies import get_bigquery_client, get_embedding_client
 from mcp_instance import mcp
 from models.product import Product
 from repositories.product_repository import ProductRepository
@@ -66,7 +66,6 @@ async def discover_products(
     sort_by: Literal["price-asc", "price-desc", "sell_from-asc", "sell_from-desc", "recent_days_sold-asc", "recent_days_sold-desc"] | None = None,
 ) -> DiscoverProductsResponse:
     repository = ProductRepository(
-        cyberbiz_client=get_cyberbiz_client(),
         bigquery_client=get_bigquery_client(),
         embedding_client=get_embedding_client(),
     )
@@ -90,20 +89,11 @@ async def discover_products(
         products = await repository.search_by_vector_similarity(
             query=query,
             limit=per_page,
+            min_price=min_price,
+            max_price=max_price,
+            store_type=store_type,
+            genre=genre,
         )
-
-        # Apply price filters if specified
-        if min_price is not None or max_price is not None:
-            filtered_products = []
-            for p in products:
-                if p.price is None:
-                    continue
-                if min_price is not None and p.price < min_price:
-                    continue
-                if max_price is not None and p.price > max_price:
-                    continue
-                filtered_products.append(p)
-            products = filtered_products
 
         return DiscoverProductsResponse(
             status="success",

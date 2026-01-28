@@ -2,19 +2,19 @@
 from pydantic import BaseModel
 
 
-class ProductDescriptionEntity(BaseModel):
+class ProductDescription(BaseModel):
     """Product description entity."""
     type: str | None = None
     body_html: str | None = None
 
 
-class ProductOptionEntity(BaseModel):
+class ProductOption(BaseModel):
     """Product option/specification entity."""
     name: str
     types: list[str]
 
 
-class ProductVariantPhotoEntity(BaseModel):
+class ProductVariantPhoto(BaseModel):
     """Product variant photo entity with multiple sizes."""
     thumb: str | None = None
     large: str | None = None
@@ -33,7 +33,7 @@ class ProductVariant(BaseModel):
     weight: float | None = None
     quantity: int | None = None
     featured_image: dict | None = None
-    photo_urls: list[ProductVariantPhotoEntity] | None = None
+    photo_urls: list[ProductVariantPhoto] | None = None
 
 
 class Product(BaseModel):
@@ -50,6 +50,6 @@ class Product(BaseModel):
     product_type: str | None = None
     store_type: str | None = None
     genre: str | None = None
-    descriptions: list[ProductDescriptionEntity] | None = None
-    options: list[ProductOptionEntity] | None = None
+    descriptions: list[ProductDescription] | None = None
+    options: list[ProductOption] | None = None
     variants: list[ProductVariant]

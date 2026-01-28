@@ -3,16 +3,17 @@ import logging
 from typing import Any
 from pprint import pformat
 
+import httpx
+
 from config import config
 from models.product import (
     Product,
     ProductVariant,
-    ProductDescriptionEntity,
-    ProductOptionEntity,
-    ProductVariantPhotoEntity,
+    ProductDescription,
+    ProductOption,
+    ProductVariantPhoto,
 )
 from services.cyberbiz_bigquery_client import CyberbizBigQueryClient
-from services.cyberbiz_client import CyberbizClient
 from services.embedding_client import EmbeddingClient
 
 logger = logging.getLogger(__name__)
@@ -21,30 +22,67 @@ logger = logging.getLogger(__name__)
 class ProductRepository:
     def __init__(
         self,
-        cyberbiz_client: CyberbizClient,
         bigquery_client: CyberbizBigQueryClient,
         embedding_client: EmbeddingClient
     ):
-        self.cyberbiz_client = cyberbiz_client
         self.bigquery_client = bigquery_client
         self.embedding_client = embedding_client
+        self.api_base_url = config.cyberbiz_api_base_url
+        self.timeout = 30
 
-    async def search_by_vector_similarity(self, query: str, limit: int) -> list[Product]:
+    async def search_by_vector_similarity(
+        self,
+        query: str,
+        limit: int,
+        min_price: float | None = None,
+        max_price: float | None = None,
+        store_type: str | None = None,
+        genre: str | None = None,
+    ) -> list[Product]:
         embedding = await self.embedding_client.generate_embedding(query)
         product_embedding_table = f"{config.CYBERBIZ_GCP_PROJECT_ID}.cyberbiz_embedding_gemini.product_embeddings"
         similarity_threshold = 0.2
+
+        # Build filter conditions and query params 
+        filter_conditions = []
+        query_params = {
+            "embedding": embedding,
+            "limit": limit,
+            "threshold": similarity_threshold
+        }
+
+        if min_price is not None:
+            filter_conditions.append("base.price >= @min_price")
+            query_params["min_price"] = min_price
+
+        if max_price is not None:
+            filter_conditions.append("base.price <= @max_price")
+            query_params["max_price"] = max_price
+
+        if store_type is not None:
+            filter_conditions.append("base.store_type = @store_type")
+            query_params["store_type"] = store_type
+
+        if genre is not None:
+            filter_conditions.append("base.genre = @genre")
+            query_params["genre"] = genre
+
+        where_filter = ""
+        if filter_conditions:
+            where_filter = "AND " + " AND ".join(filter_conditions)
 
         sql = f"""
             SELECT
                 base.id as product_id,
                 base.shop_id,
                 base.content,
+                base.price,
                 distance,
                 (1 - distance) as similarity_score
             FROM
                 VECTOR_SEARCH(
                 (
-                    SELECT id, shop_id, content, ml_generate_embedding_result
+                    SELECT id, shop_id, content, price, store_type, genre, ml_generate_embedding_result
                     FROM `{product_embedding_table}`
                     WHERE shop_id = @shop_id
                 ),
@@ -54,14 +92,11 @@ class ProductRepository:
                 distance_type => 'COSINE'
                 )
             WHERE (1 - distance) >= @threshold
+            {where_filter}
             ORDER BY similarity_score DESC
         """
 
-        res = await self.bigquery_client.query(sql, {
-            "embedding": embedding,
-            "limit": limit,
-            "threshold": similarity_threshold
-        })
+        res = await self.bigquery_client.query(sql, query_params)
 
         # Extract product IDs and fetch details in parallel
         product_ids = [result["product_id"] for result in res]
@@ -70,10 +105,11 @@ class ProductRepository:
 
 
     async def get_product_detail(self, product_id: int) -> Product:
-        res = await self.cyberbiz_client.make_request(
-            "GET",
-            f"/api/storefront/v1/products/{product_id}",
-        )
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            url = f"{self.api_base_url}/api/storefront/v1/products/{product_id}"
+            response = await client.get(url)
+            response.raise_for_status()
+            res = response.json()
 
         variants = []
         if res.get("variants"):
@@ -82,7 +118,7 @@ class ProductRepository:
                 if variant.get("photo_urls"):
                     for photo in variant["photo_urls"]:
                         photo_urls.append(
-                            ProductVariantPhotoEntity(
+                            ProductVariantPhoto(
                                 thumb=photo.get("thumb"),
                                 large=photo.get("large"),
                                 original=photo.get("original"),
@@ -109,7 +145,7 @@ class ProductRepository:
         if res.get("descriptions"):
             for desc in res["descriptions"]:
                 descriptions.append(
-                    ProductDescriptionEntity(
+                    ProductDescription(
                         type=desc.get("type"),
                         body_html=desc.get("body_html"),
                     )
@@ -119,7 +155,7 @@ class ProductRepository:
         if res.get("options"):
             for opt in res["options"]:
                 options.append(
-                    ProductOptionEntity(
+                    ProductOption(
                         name=opt.get("name", ""),
                         types=opt.get("types", []),
                     )
@@ -188,11 +224,11 @@ class ProductRepository:
         if sort_by:
             params["sort_by"] = sort_by
 
-        res = await self.cyberbiz_client.make_request(
-            "GET",
-            "/api/storefront/v1/products",
-            params=params
-        )
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            url = f"{self.api_base_url}/api/storefront/v1/products"
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            res = response.json()
 
         products = []
         for item in res:
@@ -203,7 +239,7 @@ class ProductRepository:
                     if variant.get("photo_urls"):
                         for photo in variant["photo_urls"]:
                             photo_urls.append(
-                                ProductVariantPhotoEntity(
+                                ProductVariantPhoto(
                                     thumb=photo.get("thumb"),
                                     large=photo.get("large"),
                                     original=photo.get("original"),
@@ -230,7 +266,7 @@ class ProductRepository:
             if item.get("descriptions"):
                 for desc in item["descriptions"]:
                     descriptions.append(
-                        ProductDescriptionEntity(
+                        ProductDescription(
                             type=desc.get("type"),
                             body_html=desc.get("body_html"),
                         )
@@ -240,7 +276,7 @@ class ProductRepository:
             if item.get("options"):
                 for opt in item["options"]:
                     options.append(
-                        ProductOptionEntity(
+                        ProductOption(
                             name=opt.get("name", ""),
                             types=opt.get("types", []),
                         )
