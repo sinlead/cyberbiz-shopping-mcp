@@ -6,7 +6,7 @@ from pprint import pformat
 import httpx
 
 from config import config
-from context import get_shop_domain
+from context import get_shop_domain, get_shop_id
 from models.product import (
     Product,
     ProductVariant,
@@ -41,6 +41,12 @@ class ProductRepository:
         store_type: str | None = None,
         genre: str | None = None,
     ) -> list[Product]:
+        # Get shop context
+        shop_id = get_shop_id()
+        shop_domain = get_shop_domain()
+
+        logger.info(f"Vector search for shop_id={shop_id}, shop_domain={shop_domain}, query='{query}'")
+
         embedding = await self.embedding_client.generate_embedding(query)
         product_embedding_table = f"{config.CYBERBIZ_GCP_PROJECT_ID}.cyberbiz_embedding_gemini.product_embeddings"
         similarity_threshold = 0.2
@@ -48,6 +54,7 @@ class ProductRepository:
         # Build filter conditions and query params
         filter_conditions = []
         query_params = {
+            "shop_id": shop_id,
             "embedding": embedding,
             "limit": limit,
             "threshold": similarity_threshold
@@ -98,11 +105,17 @@ class ProductRepository:
             ORDER BY similarity_score DESC
         """
 
+        # Log the query for debugging
+        logger.info(f"Executing vector search with query_params: shop_id={query_params.get('shop_id')}, limit={limit}, threshold={similarity_threshold}")
+
         res = await self.bigquery_client.query(sql, query_params)
 
         logger.info(f"Vector search returned {len(res)} results")
         if res:
             logger.info(f"Top result similarity scores: {[f'{r.get('similarity_score', 0):.4f}' for r in res[:3]]}")
+            # Log titles if available
+            if 'content' in res[0]:
+                logger.info(f"Top results content: {[r.get('content', 'N/A')[:50] for r in res[:3]]}")
         else:
             logger.warning(f"No results found for query: '{query}' with threshold {similarity_threshold}")
 
