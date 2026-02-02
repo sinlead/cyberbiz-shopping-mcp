@@ -7,8 +7,8 @@ from pydantic import BaseModel
 class StoreType(IntEnum):
     """Store type enumeration."""
     SHOP = 1  # 線上商店 (Online store)
-    # POS_SHOP = 2  # POS商店
-    # BRANCH_STORE = 3  # 門市
+    POS_SHOP = 2  # POS商店
+    BRANCH_STORE = 3  # 門市
 
 
 class Genre(IntEnum):

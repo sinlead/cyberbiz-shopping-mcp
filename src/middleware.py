@@ -12,8 +12,13 @@ logger = logging.getLogger(__name__)
 class ShopContextMiddleware(BaseHTTPMiddleware):
     """Middleware to extract shop_id and shop_domain from headers and set in context."""
 
+    EXEMPT_PATHS = {"/health"}
+
     async def dispatch(self, request: Request, call_next):
         """Extract shop_id and shop_domain from headers and set in context."""
+
+        if request.url.path in self.EXEMPT_PATHS:
+            return await call_next(request)
 
         # Extract from headers
         shop_id_str = request.headers.get("X-Shop-ID")
