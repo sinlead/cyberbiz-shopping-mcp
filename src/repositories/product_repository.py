@@ -6,12 +6,15 @@ from pprint import pformat
 import httpx
 
 from config import config
+from context import get_shop_domain, get_shop_id
 from models.product import (
     Product,
     ProductVariant,
     ProductDescription,
     ProductOption,
     ProductVariantPhoto,
+    StoreType,
+    Genre,
 )
 from services.cyberbiz_bigquery_client import CyberbizBigQueryClient
 from services.embedding_client import EmbeddingClient
@@ -27,7 +30,6 @@ class ProductRepository:
     ):
         self.bigquery_client = bigquery_client
         self.embedding_client = embedding_client
-        self.api_base_url = config.cyberbiz_api_base_url
         self.timeout = 30
 
     async def search_by_vector_similarity(
@@ -39,13 +41,20 @@ class ProductRepository:
         store_type: str | None = None,
         genre: str | None = None,
     ) -> list[Product]:
+        # Get shop context
+        shop_id = get_shop_id()
+        shop_domain = get_shop_domain()
+
+        logger.info(f"Vector search for shop_id={shop_id}, shop_domain={shop_domain}, query='{query}'")
+
         embedding = await self.embedding_client.generate_embedding(query)
         product_embedding_table = f"{config.CYBERBIZ_GCP_PROJECT_ID}.cyberbiz_embedding_gemini.product_embeddings"
         similarity_threshold = 0.2
 
-        # Build filter conditions and query params 
+        # Build filter conditions and query params
         filter_conditions = []
         query_params = {
+            "shop_id": shop_id,
             "embedding": embedding,
             "limit": limit,
             "threshold": similarity_threshold
@@ -61,11 +70,11 @@ class ProductRepository:
 
         if store_type is not None:
             filter_conditions.append("base.store_type = @store_type")
-            query_params["store_type"] = store_type
+            query_params["store_type"] = StoreType[store_type.upper()].value
 
         if genre is not None:
             filter_conditions.append("base.genre = @genre")
-            query_params["genre"] = genre
+            query_params["genre"] = Genre[genre.upper()].value
 
         where_filter = ""
         if filter_conditions:
@@ -96,17 +105,32 @@ class ProductRepository:
             ORDER BY similarity_score DESC
         """
 
+        # Log the query for debugging
+        logger.info(f"Executing vector search with query_params: shop_id={query_params.get('shop_id')}, limit={limit}, threshold={similarity_threshold}")
+
         res = await self.bigquery_client.query(sql, query_params)
+
+        logger.info(f"Vector search returned {len(res)} results")
+        if res:
+            logger.info(f"Top result similarity scores: {[f'{r.get('similarity_score', 0):.4f}' for r in res[:3]]}")
+            # Log titles if available
+            if 'content' in res[0]:
+                logger.info(f"Top results content: {[r.get('content', 'N/A')[:50] for r in res[:3]]}")
+        else:
+            logger.warning(f"No results found for query: '{query}' with threshold {similarity_threshold}")
 
         # Extract product IDs and fetch details in parallel
         product_ids = [result["product_id"] for result in res]
         products = await asyncio.gather(*[self.get_product_detail(product_id) for product_id in product_ids])
+
+        logger.info(f"Successfully fetched {len(products)} product details")
         return products
 
 
     async def get_product_detail(self, product_id: int) -> Product:
+        shop_domain = get_shop_domain()
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            url = f"{self.api_base_url}/api/storefront/v1/products/{product_id}"
+            url = f"https://{shop_domain}/api/storefront/v1/products/{product_id}"
             response = await client.get(url)
             response.raise_for_status()
             res = response.json()
@@ -224,8 +248,9 @@ class ProductRepository:
         if sort_by:
             params["sort_by"] = sort_by
 
+        shop_domain = get_shop_domain()
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            url = f"{self.api_base_url}/api/storefront/v1/products"
+            url = f"https://{shop_domain}/api/storefront/v1/products"
             response = await client.get(url, params=params)
             response.raise_for_status()
             res = response.json()

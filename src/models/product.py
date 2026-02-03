@@ -1,5 +1,21 @@
 """Product data models."""
+from enum import IntEnum
+
 from pydantic import BaseModel
+
+
+class StoreType(IntEnum):
+    """Store type enumeration."""
+    SHOP = 1  # 線上商店 (Online store)
+    POS_SHOP = 2  # POS商店
+    BRANCH_STORE = 3  # 門市
+
+
+class Genre(IntEnum):
+    """Product genre enumeration."""
+    NORMAL = 1  # 一般商品 (Regular products)
+    ETICKET = 2  # 電子票券 (E-tickets)
+    COMBO = 3  # 組合商品 (Combo products)
 
 
 class ProductDescription(BaseModel):
