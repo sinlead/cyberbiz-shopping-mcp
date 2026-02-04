@@ -66,6 +66,7 @@ class Product(BaseModel):
     product_type: str | None = None
     store_type: str | None = None
     genre: str | None = None
+    product_url: str | None = None
     descriptions: list[ProductDescription] | None = None
     options: list[ProductOption] | None = None
     variants: list[ProductVariant]
