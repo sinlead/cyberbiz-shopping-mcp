@@ -59,12 +59,20 @@ async def discover_products(
     query: str,
     page: int = 1,
     per_page: int = 10,
-    min_price: float | None = None,
-    max_price: float | None = None,
+    min_price: float | str | None = None,
+    max_price: float | str | None = None,
     store_type: Literal["shop"] = "shop",
     genre: Literal["normal", "eticket", "combo"] | None = None,
     sort_by: Literal["price-asc", "price-desc", "sell_from-asc", "sell_from-desc", "recent_days_sold-asc", "recent_days_sold-desc"] | None = None,
 ) -> DiscoverProductsResponse:
+    # Convert prices to float if needed
+    try:
+        min_price_float = float(min_price) if min_price is not None else None
+        max_price_float = float(max_price) if max_price is not None else None
+    except (ValueError, TypeError):
+        min_price_float = None
+        max_price_float = None
+
     repository = ProductRepository(
         bigquery_client=get_bigquery_client(),
         embedding_client=get_embedding_client(),
@@ -77,8 +85,8 @@ async def discover_products(
             per_page=per_page,
             store_type=store_type,
             genre=genre,
-            min_price=min_price,
-            max_price=max_price,
+            min_price=min_price_float,
+            max_price=max_price_float,
             sort_by=sort_by or "recent_days_sold-desc",
         )
         return DiscoverProductsResponse(
@@ -89,8 +97,8 @@ async def discover_products(
         products = await repository.search_by_vector_similarity(
             query=query,
             limit=per_page,
-            min_price=min_price,
-            max_price=max_price,
+            min_price=min_price_float,
+            max_price=max_price_float,
             store_type=store_type,
             genre=genre,
         )
